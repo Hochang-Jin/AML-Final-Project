@@ -84,8 +84,11 @@ def train():
     plot_mean_scores = []
     total_score = 0
     record = 0
+
+    # Setting Map
+    Map = [0, 0, 620, 240] # player_x,player_y, goal_x, goal_y
     agent = Agent()
-    game = GameAI()
+    game = GameAI(map=Map)
     while True:
         # get old state
         state_old = agent.get_state(game)
