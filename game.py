@@ -17,14 +17,24 @@ BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
-BLOCK_SIZE = 20
+BLOCK_SIZE = 80
 SPEED = 40
 
+# default map
+MAP  = [[1,0,0,0,0],
+        [0,0,0,0,2],
+        [0,0,0,0,0]] # 0: nothing, 1: player, 2: goal, 3: wall
+
+# array to map setting
+def getPoint(x, y):
+    return Point(x*BLOCK_SIZE, y*BLOCK_SIZE)
+
 class GameAI:
-    def __init__(self, w=640, h=480, map=[0,240,620,240]):
-        self.w = w
-        self.h = h
+    def __init__(self, map=MAP):
         self.map=map
+        self.w = BLOCK_SIZE * len(self.map[0])
+        self.h = BLOCK_SIZE * len(self.map)
+        self.walls=[]
         # init display
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Game')
@@ -32,9 +42,23 @@ class GameAI:
         self.reset()
 
     def reset(self):
-        self.player = Point(self.map[0], self.map[1])
+        # map reading
+        for i in self.map:
+            for j in i:
+                if j == 1:
+                    x = i.index(j)
+                    y = self.map.index(i)
+                    self.player = getPoint(x, y)
+                elif j == 2:
+                    x = i.index(j)
+                    y = self.map.index(i)
+                    self.goal = getPoint(x,y)
+                elif j == 3:
+                    x = i.index(j)
+                    y = self.map.index(i)
+                    self.walls.append(getPoint(x,y))
+
         self.score = 300
-        self.goal = Point(self.map[2], self.map[3])
         self.frame_iteration = 0
 
     def play_step(self, action):
@@ -57,7 +81,7 @@ class GameAI:
             self.score = -300
             return reward, game_over, self.score
 
-        # 4. place new food or just move
+        # 4. player reaches goal or not
         if self.player == self.goal:
             reward = 10
             game_over = True
@@ -77,17 +101,23 @@ class GameAI:
         # hits boundary
         if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
             return True
+        # hits wall
+        if pt in self.walls:
+            return True
 
         return False
 
     def _update_ui(self):
         self.display.fill(BLACK)
 
+        # player: Blue
         pygame.draw.rect(self.display, BLUE1, pygame.Rect(self.player.x, self.player.y, BLOCK_SIZE, BLOCK_SIZE))
-        pygame.draw.rect(self.display, BLUE2, pygame.Rect(self.player.x + 4, self.player.y + 4, 12, 12))
-
+        pygame.draw.rect(self.display, BLUE2, pygame.Rect(self.player.x + 4, self.player.y + 4, 72, 72))
+        # goal : Red
         pygame.draw.rect(self.display, RED, pygame.Rect(self.goal.x, self.goal.y, BLOCK_SIZE, BLOCK_SIZE))
-
+        # wall : White
+        for wall in self.walls:
+            pygame.draw.rect(self.display, WHITE, pygame.Rect(wall[0],wall[1], BLOCK_SIZE, BLOCK_SIZE))
         text = font.render("Score: " + str(self.score), True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()

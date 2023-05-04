@@ -86,7 +86,11 @@ def train():
     record = 0
 
     # Setting Map
-    Map = [0, 0, 620, 240] # player_x,player_y, goal_x, goal_y
+    Map = [[0,0,0,0,0,0],
+           [0,0,0,0,0,2],
+           [1,0,0,3,0,0],
+           [0,0,0,3,0,0]]
+
     agent = Agent()
     game = GameAI(map=Map)
     while True:
