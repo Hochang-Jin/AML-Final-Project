@@ -3,6 +3,7 @@ import random
 from enum import Enum
 from collections import namedtuple
 import numpy as np
+from map import minDistance
 
 pygame.init()
 
@@ -16,14 +17,17 @@ RED = (200,0,0)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
+BUTTON1 = (200, 100, 255)
 
-BLOCK_SIZE = 80
+
+BLOCK_SIZE = 20
+global SPEED
 SPEED = 40
 
 # default map
-MAP  = [[1,0,0,0,0],
+MAP  = np.array([[1,0,0,0,0],
         [0,0,0,0,2],
-        [0,0,0,0,0]] # 0: nothing, 1: player, 2: goal, 3: wall
+        [0,0,0,0,0]]) # 0: nothing, 1: player, 2: goal, 3: wall
 
 # array to map setting
 def getPoint(x, y):
@@ -31,32 +35,34 @@ def getPoint(x, y):
 
 class GameAI:
     def __init__(self, map=MAP):
-        self.map=map
+        self.map = map
         self.w = BLOCK_SIZE * len(self.map[0])
         self.h = BLOCK_SIZE * len(self.map)
-        self.walls=[]
+        self.walls = []
+        # self.upButton = pygame.Rect(self.w, 0, 40, 40)
+        self.upImage = pygame.image.load("IMG_4516.PNG")
+        self.upButton = self.upImage.get_rect(center=(self.w+20, 20))
+        self.downImage = pygame.image.load("IMG_4515.PNG")
+        self.downButton = self.downImage.get_rect(center=(self.w + 20, 60))
+
+        # self.downButton = pygame.Rect(self.w,40,40,40)
         # init display
-        self.display = pygame.display.set_mode((self.w, self.h))
+        self.display = pygame.display.set_mode((self.w + 80, self.h + 40))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.reset()
 
     def reset(self):
         # map reading
-        for i in self.map:
-            for j in i:
-                if j == 1:
-                    x = i.index(j)
-                    y = self.map.index(i)
-                    self.player = getPoint(x, y)
-                elif j == 2:
-                    x = i.index(j)
-                    y = self.map.index(i)
-                    self.goal = getPoint(x,y)
-                elif j == 3:
-                    x = i.index(j)
-                    y = self.map.index(i)
-                    self.walls.append(getPoint(x,y))
+
+        player_point = np.argwhere(self.map == 1)[0]
+        goal_point = np.argwhere(self.map == 2)[0]
+        walls_point = np.argwhere(self.map == 3)
+
+        self.player = getPoint(player_point[1], player_point[0])
+        self.goal = getPoint(goal_point[1], goal_point[0])
+        for wall in walls_point:
+            self.walls.append(getPoint(wall[1], wall[0]))
 
         self.score = 300
         self.frame_iteration = 0
@@ -68,6 +74,11 @@ class GameAI:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.upButton.collidepoint(event.pos):
+                    up()
+                elif self.downButton.collidepoint(event.pos):
+                    down()
 
         # 2. move
         self._move(action)  # update the head
@@ -75,21 +86,54 @@ class GameAI:
         # 3. check if game over
         reward = 0
         game_over = False
-        if self.is_collision() or self.frame_iteration > 1800:
+        # if self.is_collision() or self.score < 0:
+        #     game_over = True
+        #     self.score = -300
+        #     reward = -10 if self.score > -10 else self.score
+        #     return reward, game_over, self.score
+
+        tmp = action.index(1)
+        taction = action.copy()
+        taction[(tmp+2)%4] = 1
+        taction[tmp] = 0
+
+        if self.is_collision():
+            game_over = True
+            self._move(taction)
+            reward = self.score / 100 - 10
+            # reward -= (abs(self.player.x - self.goal.x) + abs(self.player.y - self.goal.y)) / BLOCK_SIZE / 10 # reward - L1 loss
+            tmap = self.map.copy()
+            player_point = np.argwhere(tmap==1)[0]
+            tmap[player_point[0]][player_point[1]] = 0
+            tmap[int(self.player.y/BLOCK_SIZE)][int(self.player.x/BLOCK_SIZE)] = 1
+            reward -= minDistance(tmap) / 10
+            self.score = 0
+            return reward, game_over, self.score
+
+        if self.score < 0:
             game_over = True
             reward = -10
-            self.score = -300
+            # reward -= (abs(self.player.x - self.goal.x) + abs(self.player.y - self.goal.y)) / BLOCK_SIZE / 10 # reward - L1 loss
+            tmap = self.map.copy()
+            player_point = np.argwhere(tmap == 1)[0]
+            tmap[player_point[0]][player_point[1]] = 0
+            tmap[int(self.player.y / BLOCK_SIZE)][int(self.player.x / BLOCK_SIZE)] = 1
+            reward -= minDistance(tmap) / 10
+            self.score = 0
             return reward, game_over, self.score
 
         # 4. player reaches goal or not
         if self.player == self.goal:
-            reward = 10
+            reward = 1000
             game_over = True
             return reward, game_over, self.score
         else:
             self.score -= 1
 
         # 5. update ui and clock
+        global SPEED
+        if SPEED < 0:
+            SPEED = 1
         self._update_ui()
         self.clock.tick(SPEED)
         # 6. return game over and score
@@ -99,12 +143,19 @@ class GameAI:
         if pt is None:
             pt = self.player
         # hits boundary
-        if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
-            return True
+        # if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
+        #     return True
         # hits wall
         if pt in self.walls:
             return True
 
+        return False
+
+    def is_goal(self, pt=None):
+        if pt is None:
+            pt = self.player
+        if pt == self.goal:
+            return True
         return False
 
     def _update_ui(self):
@@ -112,14 +163,21 @@ class GameAI:
 
         # player: Blue
         pygame.draw.rect(self.display, BLUE1, pygame.Rect(self.player.x, self.player.y, BLOCK_SIZE, BLOCK_SIZE))
-        pygame.draw.rect(self.display, BLUE2, pygame.Rect(self.player.x + 4, self.player.y + 4, 72, 72))
+        pygame.draw.rect(self.display, BLUE2, pygame.Rect(self.player.x + 4, self.player.y + 4, BLOCK_SIZE - 8, BLOCK_SIZE - 8))
         # goal : Red
         pygame.draw.rect(self.display, RED, pygame.Rect(self.goal.x, self.goal.y, BLOCK_SIZE, BLOCK_SIZE))
         # wall : White
         for wall in self.walls:
             pygame.draw.rect(self.display, WHITE, pygame.Rect(wall[0],wall[1], BLOCK_SIZE, BLOCK_SIZE))
         text = font.render("Score: " + str(self.score), True, WHITE)
-        self.display.blit(text, [0, 0])
+        self.display.blit(text, [0, self.h])
+        # pygame.draw.rect(self.display, (200,150,30), pygame.Rect(self.w, 0, 40, 40))
+        # pygame.draw.rect(self.display, (150,200,30), pygame.Rect(self.w,40,40,40))
+        self.display.blit(self.upImage, self.upButton)
+        self.display.blit(self.downImage, self.downButton)
+
+        text = font.render("Speed: " + str(SPEED), True, WHITE)
+        self.display.blit(text, [self.w/2, self.h])
         pygame.display.flip()
 
     def _move(self, action):
@@ -137,3 +195,13 @@ class GameAI:
            x -= BLOCK_SIZE
 
        self.player = Point(x, y)
+       
+ # Button
+def up():
+    global SPEED
+    SPEED += 10
+
+def down():
+    global SPEED
+    SPEED -= 10
+

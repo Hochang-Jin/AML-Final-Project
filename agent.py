@@ -1,15 +1,24 @@
+import pygame.display
 import torch
 import random
 import numpy as np
 from collections import deque
-from game import GameAI, Point
+from game import GameAI, Point, BLOCK_SIZE, font
 from model import Linear_QNet, QTrainer
+from map import mapMaker, minDistance
 from helper import plot
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 256
 LR = 1e-3
 
+MAP_X = 15
+MAP_Y = 15
+N_WALLS = 30
+
+f = open('map.txt', 'r')
+fmap = f.read()
+f.close()
 class Agent:
 
     def __init__(self):
@@ -17,15 +26,15 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(8, 256, 4)
+        self.model = Linear_QNet(8, 16, 4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_state(self, game):
         head = game.player
-        point_l = Point(head.x - 20, head.y)
-        point_r = Point(head.x + 20, head.y)
-        point_u = Point(head.x, head.y - 20)
-        point_d = Point(head.x, head.y + 20)
+        point_l = Point(head.x - BLOCK_SIZE, head.y)
+        point_r = Point(head.x + BLOCK_SIZE, head.y)
+        point_u = Point(head.x, head.y - BLOCK_SIZE)
+        point_d = Point(head.x, head.y + BLOCK_SIZE)
 
         state = [
             # dangerUp
@@ -37,11 +46,17 @@ class Agent:
             # dangerLeft
             game.is_collision(point_l),
 
+            # # goal
+            # game.is_goal(point_u), # up is goal
+            # game.is_goal(point_r), # right is goal
+            # game.is_goal(point_d), # down is goal
+            # game.is_goal(point_l), # left is goal
+
             # goal location
-            game.goal.x < game.goal.x,  # food left
-            game.goal.x > game.goal.x,  # food right
-            game.goal.y < game.goal.y,  # food up
-            game.goal.y > game.goal.y  # food down
+            game.player.y > game.goal.y, # goal is in the upward
+            game.player.x < game.goal.x, # goal is in the rightward
+            game.player.y < game.goal.y,
+            game.player.x > game.goal.x
         ]
 
         return np.array(state, dtype=int)
@@ -57,7 +72,7 @@ class Agent:
 
         states, actions, rewards, next_states, dones = zip(*mini_sample)
         self.trainer.train_step(states, actions, rewards, next_states, dones)
-        # for state, action, reward, nexrt_state, done in mini_sample:
+        # for state, action, reward, next_state, done in mini_sample:
         #    self.trainer.train_step(state, action, reward, next_state, done)
 
     def train_short_memory(self, state, action, reward, next_state, done):
@@ -65,10 +80,10 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 80 - self.n_games
+        self.epsilon = 50 - self.n_games/((MAP_X * MAP_Y + N_WALLS) / 20)
         final_move = [0, 0, 0, 0]
-        if random.randint(0, 200) < self.epsilon:
-            move = random.randint(0, 2)
+        if random.randint(0, 100) < self.epsilon:
+            move = random.randint(0, 3)
             final_move[move] = 1
         else:
             state0 = torch.tensor(state, dtype=torch.float)
@@ -80,17 +95,17 @@ class Agent:
 
 
 def train():
-    plot_scores = []
-    plot_mean_scores = []
-    total_score = 0
+    # plot_scores = []
+    # plot_mean_scores = []
+    # total_score = 0
     record = 0
 
     # Setting Map
-    Map = [[0,0,0,0,0,0],
-           [0,0,0,0,0,2],
-           [1,0,0,3,0,0],
-           [0,0,0,3,0,0]]
 
+    Map = mapMaker(MAP_X, MAP_Y, N_WALLS)
+    f = open('map.txt','w')
+    f.write(np.array2string(Map,precision=2, separator=',', suppress_small=True))
+    f.close()
     agent = Agent()
     game = GameAI(map=Map)
     while True:
@@ -114,19 +129,22 @@ def train():
             # train long memory, plot result
             game.reset()
             agent.n_games += 1
+            text = font.render("Game: " + str(agent.n_games), True, (255,255,255))
+            game.display.blit(text, [game.w -60, game.h])
             agent.train_long_memory()
+            pygame.display.flip()
 
-            if score > record:
+            if score > record or agent.n_games%100 == 0:
                 record = score
                 agent.model.save()
 
-            print('Game', agent.n_games, 'Score', score, 'Record:', record)
+            print('Game', agent.n_games, 'Score', score, 'Record:', record, 'Reward: ', reward, 'Epsilon', agent.epsilon)
 
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_games
-            plot_mean_scores.append(mean_score)
-            plot(plot_scores, plot_mean_scores)
+            # plot_scores.append(score)
+            # total_score += score
+            # mean_score = total_score / agent.n_games
+            # plot_mean_scores.append(mean_score)
+            # plot(plot_scores, plot_mean_scores)
 
 
 if __name__ == '__main__':
