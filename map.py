@@ -2,26 +2,30 @@ import numpy as np
 import random
 
 def mapMaker(a=10, b=10, n_walls=0):
-    map = np.zeros((a,b), dtype=int)
-    for i in range(a):
-        for j in range(b):
-            if i == 0 or j == 0 or i == a-1 or j == b-1:
-                map[i][j] = 3
-    x, y = random.randint(1,a-2), random.randint(1,b-2)
+    while True:
+        map = np.zeros((a,b), dtype=int)
+        for i in range(a):
+            for j in range(b):
+                if i == 0 or j == 0 or i == a-1 or j == b-1:
+                    map[i][j] = 3
+        x, y = random.randint(1,a-2), random.randint(1,b-2)
 
-    map[x][y] = 1
+        map[x][y] = 1
 
-    while map[x][y] == 1 or map[x][y] == 3:
-        x, y = random.randint(1, a-2), random.randint(1, b-2)
-
-    map[x][y] = 2
-
-    for i in range(n_walls):
-        while map[x][y] == 1 or map[x][y] == 2 or map[x][y] == 3:
+        while map[x][y] == 1 or map[x][y] == 3:
             x, y = random.randint(1, a-2), random.randint(1, b-2)
-        map[x][y] = 3
 
-    print(minDistance(map))
+        map[x][y] = 2
+
+        for i in range(n_walls):
+            while map[x][y] == 1 or map[x][y] == 2 or map[x][y] == 3:
+                x, y = random.randint(1, a-2), random.randint(1, b-2)
+            map[x][y] = 3
+        print(minDistance(map))
+        if minDistance(map) > -1:
+            break
+
+
     return map
 
 

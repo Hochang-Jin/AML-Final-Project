@@ -12,21 +12,20 @@ MAX_MEMORY = 100_000
 BATCH_SIZE = 256
 LR = 1e-3
 
-MAP_X = 15
-MAP_Y = 15
-N_WALLS = 30
+MAP_X = 30
+MAP_Y = 20
+N_WALLS = 120
 
-f = open('map.txt', 'r')
-fmap = f.read()
-f.close()
+
 class Agent:
 
-    def __init__(self):
-        self.n_games = 0
-        self.epsilon = 0 # randomness
+    def __init__(self,model=Linear_QNet(13,16,4),ngames=0,record=0,epsilon=60):
+        self.record = record
+        self.n_games = ngames
+        self.epsilon = epsilon # randomness
         self.gamma = 0.9 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(8, 16, 4)
+        self.model = model
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_state(self, game):
@@ -46,11 +45,12 @@ class Agent:
             # dangerLeft
             game.is_collision(point_l),
 
-            # # goal
-            # game.is_goal(point_u), # up is goal
-            # game.is_goal(point_r), # right is goal
-            # game.is_goal(point_d), # down is goal
-            # game.is_goal(point_l), # left is goal
+            game.score,
+            # goal
+            game.is_goal(point_u), # up is goal
+            game.is_goal(point_r), # right is goal
+            game.is_goal(point_d), # down is goal
+            game.is_goal(point_l), # left is goal
 
             # goal location
             game.player.y > game.goal.y, # goal is in the upward
@@ -80,7 +80,9 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 50 - self.n_games/((MAP_X * MAP_Y + N_WALLS) / 20)
+        self.epsilon -= 1/((MAP_X * MAP_Y + N_WALLS) / 10)
+        if self.epsilon < 30 and self.record == 0:
+            self.epsilon = 50
         final_move = [0, 0, 0, 0]
         if random.randint(0, 100) < self.epsilon:
             move = random.randint(0, 3)
@@ -94,20 +96,45 @@ class Agent:
         return final_move
 
 
+def setMap(type='new'):
+    if type == 'new':
+        Map = mapMaker(MAP_X, MAP_Y, N_WALLS)
+        f = open('map.txt','w')
+        f.write(np.array2string(Map,precision=2, separator=',', suppress_small=True))
+        f.close()
+
+        agent = Agent()
+        game = GameAI(map=Map)
+        return agent, game
+    elif type == 'old':
+        f = open('map.txt', 'r')
+        fmap = f.read()
+        fmap = eval('np.array(' + fmap + ')')
+        f.close()
+        f = open('ngames.txt','r')
+        ngames = f.readline()
+        epsilon = f.readline()
+        ngames = int(ngames)
+        epsilon = float(epsilon)
+        f.close()
+
+        model = Linear_QNet(13, 16, 4)
+        model.load_state_dict(torch.load('./model/model.pth'))
+        model.eval()
+
+        agent = Agent(model=model,ngames=ngames,epsilon=epsilon)
+        game = GameAI(map=fmap)
+        return agent, game
+
 def train():
     # plot_scores = []
     # plot_mean_scores = []
     # total_score = 0
-    record = 0
+    record = -100
 
     # Setting Map
+    agent, game = setMap('old')
 
-    Map = mapMaker(MAP_X, MAP_Y, N_WALLS)
-    f = open('map.txt','w')
-    f.write(np.array2string(Map,precision=2, separator=',', suppress_small=True))
-    f.close()
-    agent = Agent()
-    game = GameAI(map=Map)
     while True:
         # get old state
         state_old = agent.get_state(game)
@@ -135,10 +162,19 @@ def train():
             pygame.display.flip()
 
             if score > record or agent.n_games%100 == 0:
-                record = score
+                if score > record:
+                    record = score
+                    agent.record = record
                 agent.model.save()
+                f = open('ngames.txt','w')
+                f.write(str(agent.n_games) + '\n')
+                f.write(str(agent.epsilon))
+                f.close()
 
-            print('Game', agent.n_games, 'Score', score, 'Record:', record, 'Reward: ', reward, 'Epsilon', agent.epsilon)
+            print('Game', agent.n_games, 'Record:', record, 'Reward: ', reward, 'Epsilon', agent.epsilon)
+
+            if agent.n_games%300 == 0 :
+                break
 
             # plot_scores.append(score)
             # total_score += score
@@ -148,4 +184,5 @@ def train():
 
 
 if __name__ == '__main__':
-    train()
+    while True:
+        train(  )

@@ -22,7 +22,7 @@ BUTTON1 = (200, 100, 255)
 
 BLOCK_SIZE = 20
 global SPEED
-SPEED = 40
+SPEED = 60
 
 # default map
 MAP  = np.array([[1,0,0,0,0],
@@ -86,12 +86,8 @@ class GameAI:
         # 3. check if game over
         reward = 0
         game_over = False
-        # if self.is_collision() or self.score < 0:
-        #     game_over = True
-        #     self.score = -300
-        #     reward = -10 if self.score > -10 else self.score
-        #     return reward, game_over, self.score
 
+        # action save for collision
         tmp = action.index(1)
         taction = action.copy()
         taction[(tmp+2)%4] = 1
@@ -101,7 +97,6 @@ class GameAI:
             game_over = True
             self._move(taction)
             reward = self.score / 100 - 10
-            # reward -= (abs(self.player.x - self.goal.x) + abs(self.player.y - self.goal.y)) / BLOCK_SIZE / 10 # reward - L1 loss
             tmap = self.map.copy()
             player_point = np.argwhere(tmap==1)[0]
             tmap[player_point[0]][player_point[1]] = 0
@@ -113,7 +108,6 @@ class GameAI:
         if self.score < 0:
             game_over = True
             reward = -10
-            # reward -= (abs(self.player.x - self.goal.x) + abs(self.player.y - self.goal.y)) / BLOCK_SIZE / 10 # reward - L1 loss
             tmap = self.map.copy()
             player_point = np.argwhere(tmap == 1)[0]
             tmap[player_point[0]][player_point[1]] = 0
@@ -126,6 +120,7 @@ class GameAI:
         if self.player == self.goal:
             reward = 1000
             game_over = True
+            self.score = 300 - self.score
             return reward, game_over, self.score
         else:
             self.score -= 1
