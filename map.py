@@ -8,15 +8,15 @@ def mapMaker(a=10, b=10, n_walls=0):
             for j in range(b):
                 if i == 0 or j == 0 or i == a-1 or j == b-1:
                     map[i][j] = 3
-        x, y = random.randint(1,a-2), random.randint(1,b-2)
+        # x, y = random.randint(1,a-2), random.randint(1,b-2)
 
-        map[x][y] = 1
+        map[1][1] = 1
 
-        while map[x][y] == 1 or map[x][y] == 3:
-            x, y = random.randint(1, a-2), random.randint(1, b-2)
+        # while map[x][y] == 1 or map[x][y] == 3:
+        #     x, y = random.randint(1, a-2), random.randint(1, b-2)
 
-        map[x][y] = 2
-
+        map[a-2][b-2] = 2
+        x,y = 0, 0
         for i in range(n_walls):
             while map[x][y] == 1 or map[x][y] == 2 or map[x][y] == 3:
                 x, y = random.randint(1, a-2), random.randint(1, b-2)

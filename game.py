@@ -21,8 +21,6 @@ BUTTON1 = (200, 100, 255)
 
 
 BLOCK_SIZE = 20
-global SPEED
-SPEED = 60
 
 # default map
 MAP  = np.array([[1,0,0,0,0],
@@ -39,6 +37,7 @@ class GameAI:
         self.w = BLOCK_SIZE * len(self.map[0])
         self.h = BLOCK_SIZE * len(self.map)
         self.walls = []
+        self.speed = 1
         # self.upButton = pygame.Rect(self.w, 0, 40, 40)
         self.upImage = pygame.image.load("IMG_4516.PNG")
         self.upButton = self.upImage.get_rect(center=(self.w+20, 20))
@@ -67,6 +66,12 @@ class GameAI:
         self.score = 300
         self.frame_iteration = 0
 
+    def up(self):
+        self.speed += 10
+
+    def down(self):
+        self.speed -= 10
+
     def play_step(self, action):
         self.frame_iteration += 1
         # 1. collect user input
@@ -76,9 +81,9 @@ class GameAI:
                 quit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if self.upButton.collidepoint(event.pos):
-                    up()
+                    self.up()
                 elif self.downButton.collidepoint(event.pos):
-                    down()
+                    self.down()
 
         # 2. move
         self._move(action)  # update the head
@@ -95,42 +100,42 @@ class GameAI:
 
         if self.is_collision():
             game_over = True
-            self._move(taction)
-            reward = self.score / 100 - 10
-            tmap = self.map.copy()
-            player_point = np.argwhere(tmap==1)[0]
-            tmap[player_point[0]][player_point[1]] = 0
-            tmap[int(self.player.y/BLOCK_SIZE)][int(self.player.x/BLOCK_SIZE)] = 1
-            reward -= minDistance(tmap) / 10
+            # self._move(taction)
+            # reward = self.score / 100 - 10
+            # tmap = self.map.copy()
+            # player_point = np.argwhere(tmap==1)[0]
+            # tmap[player_point[0]][player_point[1]] = 0
+            # tmap[int(self.player.y/BLOCK_SIZE)][int(self.player.x/BLOCK_SIZE)] = 1
+            # reward -= minDistance(tmap) / 10
             self.score = 0
+            reward = 0
             return reward, game_over, self.score
 
         if self.score < 0:
             game_over = True
-            reward = -10
-            tmap = self.map.copy()
-            player_point = np.argwhere(tmap == 1)[0]
-            tmap[player_point[0]][player_point[1]] = 0
-            tmap[int(self.player.y / BLOCK_SIZE)][int(self.player.x / BLOCK_SIZE)] = 1
-            reward -= minDistance(tmap) / 10
+            # reward = -10
+            # tmap = self.map.copy()
+            # player_point = np.argwhere(tmap == 1)[0]
+            # tmap[player_point[0]][player_point[1]] = 0
+            # tmap[int(self.player.y / BLOCK_SIZE)][int(self.player.x / BLOCK_SIZE)] = 1
+            # reward -= minDistance(tmap) / 10
+            reward = 0
             self.score = 0
             return reward, game_over, self.score
 
         # 4. player reaches goal or not
         if self.player == self.goal:
-            reward = 1000
+            reward = 10
             game_over = True
-            self.score = 300 - self.score
             return reward, game_over, self.score
         else:
             self.score -= 1
 
         # 5. update ui and clock
-        global SPEED
-        if SPEED < 0:
-            SPEED = 1
+        if self.speed < 0:
+            self.speed = 1
         self._update_ui()
-        self.clock.tick(SPEED)
+        self.clock.tick(self.speed)
         # 6. return game over and score
         return reward, game_over, self.score
 
@@ -171,7 +176,7 @@ class GameAI:
         self.display.blit(self.upImage, self.upButton)
         self.display.blit(self.downImage, self.downButton)
 
-        text = font.render("Speed: " + str(SPEED), True, WHITE)
+        text = font.render("Speed: " + str(self.speed), True, WHITE)
         self.display.blit(text, [self.w/2, self.h])
         pygame.display.flip()
 
@@ -190,13 +195,4 @@ class GameAI:
            x -= BLOCK_SIZE
 
        self.player = Point(x, y)
-       
- # Button
-def up():
-    global SPEED
-    SPEED += 10
-
-def down():
-    global SPEED
-    SPEED -= 10
 
