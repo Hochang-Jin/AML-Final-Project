@@ -37,7 +37,7 @@ class GameAI:
         self.w = BLOCK_SIZE * len(self.map[0])
         self.h = BLOCK_SIZE * len(self.map)
         self.walls = []
-        self.speed = 1
+        self.speed = 60
         # self.upButton = pygame.Rect(self.w, 0, 40, 40)
         self.upImage = pygame.image.load("IMG_4516.PNG")
         self.upButton = self.upImage.get_rect(center=(self.w+20, 20))

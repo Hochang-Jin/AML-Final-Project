@@ -12,9 +12,9 @@ MAX_MEMORY = 100_000
 BATCH_SIZE = 256
 LR = 1e-3
 
-MAP_X = 30
-MAP_Y = 20
-N_WALLS = 100
+MAP_X = 12
+MAP_Y = 12
+N_WALLS = 20
 
 
 class Agent:
@@ -153,7 +153,7 @@ def train():
     # total_score = 0
     record = 0
     # Setting Map
-    agent, game = setMap('new')
+    agent, game = setMap('old')
 
     while True:
         # get old state
@@ -193,8 +193,8 @@ def train():
 
             print('Game', agent.n_games, 'Record:', record, 'Reward: ', reward, 'Epsilon', agent.epsilon)
 
-        # if agent.n_games % 300 == 0:
-        #     return
+        if agent.n_games % 300 == 0:
+            return
 
             # plot_scores.append(score)
             # total_score += score
@@ -204,5 +204,5 @@ def train():
 
 
 if __name__ == '__main__':
-    # while True:
-    train()
+    while True:
+        train()
